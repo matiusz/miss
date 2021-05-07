@@ -1,1 +1,0 @@
-from gym_bertrand.envs.bertrand_env import BertrandEnv

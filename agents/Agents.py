@@ -1,5 +1,4 @@
 import random
-#import tensorflow
 
 class AbstractAgent():
     def __init__(self, mc):
@@ -39,8 +38,3 @@ class IncreasingAgent(AbstractAgent):
             if obs < min_obs:
                 min_obs = obs
         return max(min_obs * 1.1, self.mc)
-
-class LearningAgent(AbstractAgent):
-    def react(self, observation, reward):
-        super().react(observation, reward)
-        raise NotImplementedError
