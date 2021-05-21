@@ -15,6 +15,7 @@ class BertrandEnv(gym.Env):
         self.marginal_cost = marginal_cost
         self.reservation_price  = reservation_price
         self.action_space = spaces.Box(low=self.marginal_cost, high=1, shape=[])
+        self.observation_space = spaces.Box(low=0, high=1, shape=[agent_count-1])
         self.laststep = [1 for x in range(self.agent_count)]
 
     def step(self, action):
@@ -44,7 +45,7 @@ class BertrandEnv(gym.Env):
         return obs_n, reward_n, done_n, info_n
 
     def reset(self):
-        self.laststep = [0 for x in range(self.agent_count)]
+        self.laststep = [1 for x in range(self.agent_count)]
         self.epoch = 0
         return self.laststep
 
