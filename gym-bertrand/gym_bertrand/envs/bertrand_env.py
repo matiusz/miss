@@ -9,7 +9,8 @@ class BertrandEnv(gym.Env):
     def __init__(self):
         super(BertrandEnv, self).__init__()
 
-    def custom_init(self, agent_count, marginal_cost, reservation_price):
+    def custom_init(self, agent_count, marginal_cost, reservation_price,
+                    epochs_num=20):
         self.epoch = 0
         self.agent_count = agent_count
         self.marginal_cost = marginal_cost
@@ -17,6 +18,7 @@ class BertrandEnv(gym.Env):
         self.action_space = spaces.Box(low=self.marginal_cost, high=1, shape=[])
         self.observation_space = spaces.Box(low=0, high=1, shape=[agent_count-1])
         self.laststep = [1 for x in range(self.agent_count)]
+        self.epochs_num = epochs_num
 
     def step(self, action):
         bestOffer = None
@@ -39,7 +41,7 @@ class BertrandEnv(gym.Env):
 
         self.epoch += 1
 
-        done_n = (self.epoch>=20)
+        done_n = (self.epoch>=self.epochs_num)
 
         info_n = {'n': []}
         return obs_n, reward_n, done_n, info_n

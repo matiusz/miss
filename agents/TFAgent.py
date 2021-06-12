@@ -28,11 +28,13 @@ class PolicyGradient:
             learning_rate=0.01,
             reward_decay=0.95,
             output_graph=False,
+            units_num=10
     ):
         self.n_actions = n_actions
         self.n_features = n_features
         self.lr = learning_rate
         self.gamma = reward_decay
+        self.units_num = units_num
 
         self.ep_obs, self.ep_as, self.ep_rs = [], [], []
 
@@ -49,39 +51,40 @@ class PolicyGradient:
         self.sess.run(tf.global_variables_initializer())
 
     def _build_net(self):
-        with tf.name_scope('inputs'):
+        with tf.variable_scope('inputs', reuse=tf.AUTO_REUSE):
             self.tf_obs = tf.placeholder(tf.float32, [None, self.n_features], name="observations")
             self.tf_acts = tf.placeholder(tf.int32, [None, ], name="actions_num")
             self.tf_vt = tf.placeholder(tf.float32, [None, ], name="actions_value")
-        # fc1
-        layer = tf.layers.dense(
-            inputs=self.tf_obs,
-            units=10,
-            activation=tf.nn.tanh,  # tanh activation
-            kernel_initializer=tf.random_normal_initializer(mean=0, stddev=0.3),
-            bias_initializer=tf.constant_initializer(0.1),
-            name='fc1'
-        )
-        # fc2
-        all_act = tf.layers.dense(
-            inputs=layer,
-            units=self.n_actions,
-            activation=None,
-            kernel_initializer=tf.random_normal_initializer(mean=0, stddev=0.3),
-            bias_initializer=tf.constant_initializer(0.1),
-            name='fc2'
-        )
+        with tf.variable_scope('networks', reuse=tf.AUTO_REUSE):
+            # fc1
+            layer = tf.layers.dense(
+                inputs=self.tf_obs,
+                units=self.units_num,
+                activation=tf.nn.tanh,  # tanh activation
+                kernel_initializer=tf.random_normal_initializer(mean=0, stddev=0.3),
+                bias_initializer=tf.constant_initializer(0.1),
+                name='fc1'
+            )
+            # fc2
+            all_act = tf.layers.dense(
+                inputs=layer,
+                units=self.n_actions,
+                activation=None,
+                kernel_initializer=tf.random_normal_initializer(mean=0, stddev=0.3),
+                bias_initializer=tf.constant_initializer(0.1),
+                name='fc2'
+            )
 
-        self.all_act_prob = tf.nn.softmax(all_act, name='act_prob')  # use softmax to convert to probability
+            self.all_act_prob = tf.nn.softmax(all_act, name='act_prob')  # use softmax to convert to probability
 
-        with tf.name_scope('loss'):
+        with tf.variable_scope('loss', reuse=tf.AUTO_REUSE):
             # to maximize total reward (log_p * R) is to minimize -(log_p * R), and the tf only have minimize(loss)
             neg_log_prob = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=all_act, labels=self.tf_acts)   # this is negative log of chosen action
             # or in this way:
             # neg_log_prob = tf.reduce_sum(-tf.log(self.all_act_prob)*tf.one_hot(self.tf_acts, self.n_actions), axis=1)
             loss = tf.reduce_mean(neg_log_prob * self.tf_vt)  # reward guided loss
 
-        with tf.name_scope('train'):
+        with tf.variable_scope('train', reuse=tf.AUTO_REUSE):
             self.train_op = tf.train.AdamOptimizer(self.lr).minimize(loss)
 
     def choose_action(self, observation):
@@ -135,21 +138,30 @@ class TFAgent(AbstractAgent):
     def __init__(self, mc):
         super().__init__(mc)
         self.running_reward = 0
-    def set_env(self, env):
+        self.last_action = None
+        self.last_obs = None
+    def set_env(self, env, actions_num=1000, learning_rate=0.02,
+                reward_decay=0.99, units_num=10):
         self.RL = PolicyGradient(
-            n_actions=1000,
+            n_actions=actions_num,
             n_features=env.observation_space.shape[0],
-            learning_rate=0.02,
-            reward_decay=0.99,
+            learning_rate=learning_rate,
+            reward_decay=reward_decay,
+            units_num=units_num
             # output_graph=True,
         )
     def react(self, observation, reward):
         super().react(observation, reward)
         action = np.linspace(self.mc, 1, self.RL.n_actions)[self.RL.choose_action(observation)]
-        self.RL.store_transition(observation, action, reward)
+        if self.last_action is not None:
+            self.RL.store_transition(self.last_obs, self.last_action, reward)
+        self.last_action = action
+        self.last_obs = observation
         return action
     def reset(self):
         # calculate running reward
         ep_rs_sum = sum(self.RL.ep_rs)
         self.running_reward = self.running_reward * 0.99 + ep_rs_sum * 0.01
         vt = self.RL.learn()
+    def get_name(self):
+        return "TF"
