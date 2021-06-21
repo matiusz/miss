@@ -135,7 +135,7 @@ class LoweringAgent(AbstractAgent):
         return max(min_obs - (min_obs - self.mc)*0.1, self.mc)
     def get_name(self):
         return "Lowering"
-1
+
 class KeepingAgent(AbstractAgent):
     def react(self, observation, reward):
         super().react(observation, reward)
@@ -143,7 +143,7 @@ class KeepingAgent(AbstractAgent):
         return max(min_obs, self.mc)
     def get_name(self):
         return "Keeping"
-1
+
 class IncreasingAgent(AbstractAgent):
     def react(self, observation, reward):
         super().react(observation, reward)
